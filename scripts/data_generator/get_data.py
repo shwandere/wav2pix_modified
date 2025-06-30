@@ -1,5 +1,5 @@
 import csv
-import youtube_dl as yt
+import yt_dlp as yt
 import argparse
 import os
 import shutil
@@ -29,7 +29,7 @@ def download(url_list):
 
     for url in url_list:
         count += 1
-        print "Downloading videos and audios {}/{} with url [{}] from {}".format(count, len(url_list), url['url'], url['name'])
+        print("Downloading videos and audios {}/{} with url [{}] from {}".format(count, len(url_list), url['url'], url['name']))
         out_path = os.path.join(args.dataset_path, url['name'])
         video_out_path = os.path.join(out_path, 'video')
         audio_out_path = os.path.join(out_path, 'audio')
@@ -56,7 +56,7 @@ def download(url_list):
 
 
         except Exception:
-            print "Download error."
+            print("Download error.")
             error_counter += 1
 
 
@@ -67,8 +67,10 @@ def download(url_list):
                 shutil.move(files, video_out_path)
             elif files.endswith(".m4a"):
                 shutil.move(files, audio_out_path)
-    print "Found {} errors".format(error_counter)
+    print("Found {} errors".format(error_counter))
 
-
+#url_csv = '/home/dell/Downloads/youtuber_videos.csv'
+#dataset_path = '/home/dell/Documents/gen AI project/wav2pix/new_dataset '
 urls = read_channels(args.url_csv)
+#print(urls)
 download(urls)

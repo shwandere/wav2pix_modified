@@ -1,7 +1,7 @@
 # training pickle files path:
-train_faces_path: 
-train_audios_path: 
+train_faces_path: /home/dell/Documents/gen AI project/wav2pix/new_dataset_output/pickle_files/faces/final_output.pkl
+train_audios_path: /home/dell/Documents/gen AI project/wav2pix/new_dataset_output/pickle_files/audios/final_output.pkl
 
 # inference pickle files path:
-inference_faces_path: 
-inference_audios_path: 
+inference_faces_path: /home/dell/Documents/gen AI project/wav2pix/dataset/pickle_files/faces/final_output.pkl
+inference_audios_path: /home/dell/Documents/gen AI project/wav2pix/dataset/pickle_files/audios/final_output.pkl

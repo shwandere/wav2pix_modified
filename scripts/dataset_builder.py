@@ -1,5 +1,5 @@
 from torch.utils.data import Dataset, DataLoader
-import cPickle as pickle
+#import pickle
 import numpy as np
 from PIL import Image
 import torch
@@ -25,13 +25,13 @@ class dataset_builder(Dataset):
             self.faces = pickle.load(open(config['train_faces_path'], 'rb'))
             self.audios = pickle.load(open(config['train_audios_path'], 'rb'))
 
-            print 'Total amount of training samples: {0} faces | {1} audios '.format(len(self.faces),len(self.audios))
+            print('Total amount of training samples: {0} faces | {1} audios '.format(len(self.faces),len(self.audios)))
             print
         else:
             self.faces = pickle.load(open(config['inference_faces_path'], 'rb'))
             self.audios = pickle.load(open(config['inference_audios_path'], 'rb'))
 
-            print 'Total amount of inference samples: {0} faces | {1} audios '.format(len(self.faces),len(self.audios))
+            print('Total amount of inference samples: {0} faces | {1} audios '.format(len(self.faces),len(self.audios)))
             print
 
         # initializing some useful variables

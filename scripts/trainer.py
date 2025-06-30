@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torchvision.models as models
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from models.discriminator import discriminator
@@ -9,10 +10,63 @@ from scripts.dataset_builder import dataset_builder, Rescale
 from PIL import Image
 import os
 import numpy as np
+import librosa
 
+def transform_audio_func(audio):
+	y = audio
+	y_stretch = librosa.effects.time_stretch(y, rate=1.2)  # 20% faster
+
+	# Pitch shift (semitones)
+	y_pitch = librosa.effects.pitch_shift(y, sr=sr, n_steps=2)  # Up 2 semitones
+
+	# Add light Gaussian noise
+	noise = np.random.normal(0, 0.01, y.shape)
+	y_noise = y + noise
+
+	# You can also chain them
+	trans_y = librosa.effects.time_stretch(librosa.effects.pitch_shift(y, sr=sr, n_steps=1), rate=0.9)
+	
+	return trans_y
+
+# Load a pre-trained VGG16 model
+class VGGFeatureExtractor(nn.Module):
+    def __init__(self, layers=None):
+        super(VGGFeatureExtractor, self).__init__()
+        vgg16 = models.vgg16(pretrained=True).features
+        self.layers = nn.ModuleList([vgg16[i] for i in layers])  # Select specific layers
+        
+    def forward(self, x):
+        features = []
+        for layer in self.layers:
+            x = layer(x)
+            features.append(x)
+        return features
+
+	
+# Perceptual Loss function
+def perceptual_loss(real_image, generated_image, feature_extractor, layers=[0, 5, 10, 19]):
+    """
+    Compute the perceptual loss using a VGG network.
+    real_image: Ground truth image (tensor)
+    generated_image: Generated image (tensor)
+    feature_extractor: VGGFeatureExtractor model
+    layers: List of layers to extract features from
+    """
+    real_features = feature_extractor(real_image)
+    generated_features = feature_extractor(generated_image)
+    
+    loss = 0.0
+    for real_feat, gen_feat in zip(real_features, generated_features):
+        # L2 loss between features of real and generated images
+        loss += nn.functional.mse_loss(real_feat, gen_feat)
+    
+    return loss
+	
+
+	
 class Trainer(object):
     def __init__(self, vis_screen, save_path, l1_coef, l2_coef, pre_trained_gen,
-                 pre_trained_disc, batch_size, num_workers, epochs, inference, softmax_coef, image_size, lr_D, lr_G, audio_seconds):
+                 pre_trained_disc, batch_size, num_workers, epochs, inference, softmax_coef, equiv_coef, percept_coef, image_size, lr_D, lr_G, audio_seconds):
 
         # initializing the generator and discriminator modules.
         self.generator = generator(image_size, audio_seconds*16000).cuda()
@@ -42,7 +96,7 @@ class Trainer(object):
         self.softmax_coef = softmax_coef
         self.lr_D = lr_D
         self.lr_G = lr_G
-
+	self.equiv_coef = equiv_coef
 
         # building the data_loader
         self.dataset = dataset_builder(transform=Rescale(int(self.image_size)), inference = self.inference, audio_seconds = audio_seconds)
@@ -153,7 +207,9 @@ class Trainer(object):
 
                 # feeding D with the real images and z vector.  Storing intermediate layer activations for loss computation purposes
                 _, activation_real = self.discriminator(right_images, z_vector)
-
+		
+		
+		
 
                 activation_fake = torch.mean(activation_fake, 0)
                 activation_real = torch.mean(activation_real, 0)
@@ -170,12 +226,24 @@ class Trainer(object):
                 softmax_criterion = nn.CrossEntropyLoss()
                 softmax_loss = softmax_criterion(softmax_scores, id_labels)
 
-
+		
+		#computing the equivariance loss i dont know currently where to add it. 
+		
+		transformed_wav = transform_audio_func(raw_wav)
+		fake_images_after_audio_transform, _, _ = self.generator(transformed_wav)
+		equiv_loss = l1_loss(fake_images,fake_images_after_audio_transform)
+		
+		# Calculate perceptual loss
+		feature_extractor = VGGFeatureExtractor(layers=[0, 5, 10, 19]).to('cuda')
+		percept_loss = perceptual_loss(right_images, fake_images, feature_extractor)
+		
                 g_loss = criterion(outputs, real_labels) \
                          + self.l2_coef * l2_loss(activation_fake, activation_real.detach()) \
                          + self.l1_coef * l1_loss(fake_images, right_images)\
                          + self.softmax_coef * softmax_loss  # we have seen softmax_loss starts around 2 and g_loss around 20... That's why we've scaled by 10
-
+                         + self.equiv_coef * equiv_loss
+                         + self.percept_coef * percept_loss
+			
                 # applying backpropagation and updating parameters.
                 g_loss.backward()
                 self.optimG.step()
@@ -224,10 +292,19 @@ class Trainer(object):
                 rgb[:,:,2] = im[:,:,0]
                 im = Image.fromarray(rgb.astype('uint8'))
                 im.save('results/{0}/{1}.jpg'.format(self.save_path, t.replace("/", "")[:100]))
+                
+            from torchmetrics.image.fid import FrechetInceptionDistance
+            # Initialize FID metric
+	    fid = FrechetInceptionDistance(feature=2048).to(device)
 
+	    # Add real images (only once per eval or epoch)
+	    fid.update(real_images, real=True)
 
+            # Add generated images
+	    fid.update(fake_images, real=False)
 
+            # Compute FID score
+            fid_score = fid.compute()
 
-
-
+	    print(f"FID score: {fid_score.item():.2f}")
 

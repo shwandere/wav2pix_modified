@@ -13,6 +13,8 @@ parser.add_argument('--batch_size', default=64, type=int)
 parser.add_argument('--num_workers', default=8, type=int)
 parser.add_argument('--epochs', default=201, type=int)
 parser.add_argument('--softmax_coef', default = 20, type=float, help = 'Regularization parameter for the softmax loss')
+parser.add_argument('--equiv_coef', default = 5, type=float, help = 'Regularization parameter for the equivariance loss')
+parser.add_argument('--percept_coef', default = 0.10, type=float, help = 'Regularization parameter for the perceptual loss')
 parser.add_argument('--image_size', default = 128, type = int)
 parser.add_argument('--lr_D', default = 0.0004, type=float, help = 'learning rate of the disciminator')
 parser.add_argument('--lr_G', default = 0.0001, type=float, help = 'learning rate of the generator')
@@ -32,6 +34,8 @@ trainer = Trainer(vis_screen=args.vis_screen,
                   epochs=args.epochs,
                   inference = args.inference,
                   softmax_coef = args.softmax_coef,
+                  equiv_coef = args.equiv_coef,
+                  percept_coef = args.percept_coef,
                   image_size = args.image_size,
                   lr_D = args.lr_D,
                   lr_G = args.lr_G,

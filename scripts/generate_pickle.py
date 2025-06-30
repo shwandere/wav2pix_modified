@@ -1,6 +1,6 @@
 import os
 import argparse
-import cPickle as pickle
+import pickle
 import string,random
 
 printable = set(string.printable)
@@ -32,14 +32,15 @@ for youtuber in youtubers:
     working_path = os.path.join(args.dataset_path,youtuber)
 
     # storing faces and audios in lists
-    faces = [os.path.join(working_path,face) for face in os.listdir(working_path) if face.endswith('.png')]
+    faces = [os.path.join(working_path,face) for face in os.listdir(working_path) if face.endswith('.jpg')]
     audios = [os.path.join(working_path,audio) for audio in os.listdir(working_path) if audio.endswith('.wav')]
 
     # as there are some .wav files damaged in loics directory, I should skip that audios and do not store them
     for face in  faces:
-        audio = face.replace('cropped_face', 'preprocessed').replace('.png', '.wav').replace('.jpg', '.wav')
+        #audio = face.replace('cropped_face', 'preprocessed').replace('.png', '.wav').replace('.jpg', '.wav')
         # adding the face and its corresponding audio
         total_faces.append(face)
+    for audio in audios:    
         total_audios.append(audio)
 
 # storing both lists in the corresponding file

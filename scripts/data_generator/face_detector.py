@@ -1,6 +1,6 @@
 import cv2
 import argparse
-import cPickle as pickle
+import pickle
 import math
 import numpy as np
 import skvideo.io
@@ -39,7 +39,7 @@ def cut_audio_frame(wavfile, current_frame_idx, fps):
 
 def check_audio_frames(faces_frames_path, audio_frames_path):
     "Function that checks if audio cropping has done correctly and, if not, it corrects it."
-    print 'Checking audio and video crops sync...'
+    print('Checking audio and video crops sync...')
     faces_frames_ids = [int(x.split('_')[-1].split('.')[0]) for x in os.listdir(faces_frames_path)]
     for audio_file in os.listdir(audio_frames_path):
         audio_id = int(audio_file.split('_')[-1].split('.')[0])
@@ -47,7 +47,7 @@ def check_audio_frames(faces_frames_path, audio_frames_path):
             pass
         else:
             os.remove(os.path.join(audio_frames_path, audio_file))
-    print 'Done!'
+    print('Done!')
 
 def read_channels(file_path):
 
@@ -92,13 +92,13 @@ for index, path in enumerate(youtubers_path):
             os.makedirs(frames_faces_path)
         if not os.path.exists(bboxes_path):
             os.makedirs(bboxes_path)
-
+        print(cropped_audio_path)
         #Get video and audio data:
-        print 'Processing videos from Youtuber ' + str(index+1) + ' out of ' + str(num_youtubers)
-        print 'Loading video...'
-        print os.path.join(videos_path, video)
+        print('Processing videos from Youtuber ' + str(index+1) + ' out of ' + str(num_youtubers))
+        print('Loading video...')
+        print(os.path.join(videos_path, video))
         video_capture = skvideo.io.vreader(os.path.join(videos_path, video))
-        print 'Finish loading video'
+        print('Finish loading video')
         wavfile = get_audio_samples(os.path.join(audios_path, audio))
 
         #Obtain video metadata:
@@ -107,21 +107,22 @@ for index, path in enumerate(youtubers_path):
         width = int(vmetadata['@width'])
         height = int(vmetadata['@height'])
         frame_rate = vmetadata['@avg_frame_rate'].split('/')
-        avg_fps = int(frame_rate[0]) / int(frame_rate[1])
+        avg_fps = np.round(int(frame_rate[0]) / int(frame_rate[1]))
         duration = vmetadata['@duration']
         duration_timestamp = vmetadata['@duration_ts']
-        print 'Video Metadata: width --> {}, height --> {}, Average FPS --> {},' \
-              ' Duration (seconds) --> {}'.format(width, height, avg_fps, duration)
+        print ('Video Metadata: width --> {}, height --> {}, Average FPS --> {},' \
+              ' Duration (seconds) --> {}'.format(width, height, avg_fps, duration))
 
         #Do it only if directory is empty:
         if len([x for x in os.listdir(frames_faces_path) if os.path.isfile(os.path.join(frames_faces_path, x))]) == 0:
-            print 'Processing video..'
+            print('Processing video..')
             bboxes = {}
             try:
                 for idx, frame in tqdm(enumerate(video_capture)):
                     # Capture second-by-second
                     if idx % avg_fps == 0:
                         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                        print(cropped_audio_path)
                         audio_writer = wave.open(os.path.join(cropped_audio_path,
                                                               audio.replace(".wav", "_frame_"  + str(idx)+ ".wav")), 'w')
                         audio_writer.setparams((1, 2, 16000, 0, 'NONE', 'Uncompressed'))
@@ -145,6 +146,7 @@ for index, path in enumerate(youtubers_path):
                                 faces = None
                                 confidence = None
                         except (TypeError, ValueError):
+                            print("no face detected")
                             confidence = weights #No face detected
 
                         try:
@@ -154,20 +156,22 @@ for index, path in enumerate(youtubers_path):
                                 #cropped_face = frame[y - int(math.floor(h/4)):y + h + int(math.floor(h/4)),
                                 #               x - int(math.floor(w / 4)):x + w + int(math.floor(w/4))]
                                 cropped_face = frame[y :y + h , x :x + w ] #Make bbox bigger to ensure it crops the whole face
-
-				cv2.imwrite(os.path.join(cropped_faces_path, 'cropped_face_frame_' + str(idx) + '.jpg'),
-                                            cropped_face)
+                                #cv2.imshow('ff',cropped_face)
+                                #cv2.waitKey()
+                                cv2.imwrite(os.path.join(cropped_faces_path, 'cropped_face_frame_' + str(idx) + '.jpg'),cropped_face)
                                 cv2.imwrite(os.path.join(frames_faces_path, 'frame_' + str(idx) + '.jpg'), frame)
                                 cropped_wavfile = cut_audio_frame(wavfile, idx, avg_fps)
                                 audio_writer.writeframes(cropped_wavfile)
                                 audio_writer.close()
                         except (TypeError, ValueError, cv2.error, RuntimeError) as err:
+                           print("got into except")
                            print(err) 
 
                 #Save bboxes:
-                with open(os.path.join(bboxes_path, 'bboxes.p'), 'w') as f:
+                with open(os.path.join(bboxes_path, 'bboxes.p'), 'wb') as f:
                     pickle.dump(bboxes, f)
                 check_audio_frames(frames_faces_path, cropped_audio_path)
             except(RuntimeError):
+                print("runtime error")
                 check_audio_frames(frames_faces_path, cropped_audio_path)
-print 'Finished'
+print('Finished')
